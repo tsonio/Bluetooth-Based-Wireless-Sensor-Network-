@@ -36,6 +36,9 @@ byte atPin = 4;
 //D7 turns the HC-05 on and off
 byte hcPower = 7;
 
+//D5 is connected to the STATE pin of the HC-05 and goes HIGH when the module is paired with a slave
+byte pairedPin =5;
+
 //Used for mirroring AT commands to the serial monitor
 char c = ' ';
 
@@ -116,9 +119,16 @@ void loop(){
     delay(100);
     digitalWrite(atPin, LOW);
     isPaired = 1;   
+    
 
    //Send a message to the slave 
     BTserial.write("HELLO THERE!\n");
+
+    //When HC-05 is paired with a slave, the STATE pin is set to HIGH
+    //Print a message to the serial monitor to confirm it 
+     if(pairedPin){
+      Serial.write("The state pin is HIGH, HC-05 is now paired with a slave!");
+    }
     delay(3000);
   } 
 
