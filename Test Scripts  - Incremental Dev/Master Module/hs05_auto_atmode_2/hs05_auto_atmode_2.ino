@@ -1,11 +1,16 @@
 /*
  * @author Tsonyo Vasilev
- * @version 0.1
+ * @version 0.2
+ * 
+ * version 0.2: The code now sends a pairing confirmation message to the slave
+ * and upon receiving it, HC-06 (slave) responds with temp + humidity readings from the DHT11 sensor
+ * 
  *This sketch demonstrates how to connect an HC-05 Bluetooth module
  *used as a master to an HC-06 Bluetooth slave. The program automatically 
  *puts the HC-05 in AT mode, ready to accept commands and then pairs it with
  *an HC-06 slave with a known address. It then sends a message to the HC-06 via
  *Bluetooth connected to a different PC where the Arduino Serial Terminal displays it.
+ *
  */
 //  Pins
 //  BT VCC to Arduino 5V out. 
@@ -22,9 +27,9 @@
 //5. The LED on the BT board starts flashing slowly (~every 2 seconds)
 //6. The module is now in AT mode, yay!!!!
 
- 
- 
+//Needed for serial comms via Bluetooth
 #include <SoftwareSerial.h>
+
 SoftwareSerial BTserial(2, 3); // RX | TX
 // Connect the HC-05 TX to Arduino pin 3 RX. 
 // Connect the HC-05 RX to Arduino pin 2 TX through a voltage divider (No voltage divider required, the board already has a regulator).
@@ -63,16 +68,15 @@ void setup()
 
     //Pin 7 powers the HC-05
     pinMode(hcPower, OUTPUT);
-
-  
-    
+     
 }
 
 //Call this to get the HC-05 into AT mode
 void getATMode(){
+    //Apply power to the HC-05
     digitalWrite(hcPower, HIGH); 
     delay(20);
-    //Get the HC-05 to AT mode
+    //Put the HC-05 in AT mode
     digitalWrite(atPin, HIGH); //Pin 34 to HIGH
     delay(100);
     digitalWrite(hcPower, LOW); //Disconnect power
@@ -119,16 +123,42 @@ void loop(){
     delay(100);
     digitalWrite(atPin, LOW);
     isPaired = 1;   
-    
+    delay(100);
+  
 
-   //Send a message to the slave 
-    BTserial.write("HELLO THERE!\n");
+    //Send a welcome message to the slave 
+    BTserial.print("\nConnected to master.\n");
 
     //When HC-05 is paired with a slave, the STATE pin is set to HIGH
     //Print a message to the serial monitor to confirm it 
-     if(pairedPin){
-      Serial.write("The state pin is HIGH, HC-05 is now paired with a slave!");
+    if(pairedPin){
+      
+      //Serial.write("The state pin is HIGH, HC-05 is now paired with a slave!");
+      
+      //Send a pairing confirmation message to the slave
+      //Once received, it will respond with a temperature and humidity reading
+      BTserial.print("P");
+    } 
+
+      //Store the incoming reading in a variable and print it to the serial monitor
+      //BTSerial.read() expects an int, .readString() doesn't print anything to the SM
+      /*
+      int incoming = BTserial.read();
+      Serial.println("Incoming data from the slave: ");
+      Serial.println(incoming);
+      */
+    //MANUAL INPUT AND COMMAND MIRRORING////////////////////////
+    //
+    if (Serial.available())
+    {
+        c =  Serial.read();
+ 
+        // mirror the commands back to the serial monitor
+        Serial.write(c);   
+        BTserial.write(c);  
     }
+    ////////////////////////////////////////////////////////////
+    
     delay(3000);
   } 
 
