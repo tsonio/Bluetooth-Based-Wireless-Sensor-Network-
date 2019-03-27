@@ -1,6 +1,8 @@
 /*
  * @author Tsonyo Vasilev
- * @version 0.2
+ * @version 0.3
+ * 
+ * version 0.3: Incoming sensor data is now stored  in a String variable
  * 
  * version 0.2: The code now sends a pairing confirmation message to the slave
  * and upon receiving it, HC-06 (slave) responds with temp + humidity readings from the DHT11 sensor
@@ -53,6 +55,9 @@ bool isAtEngaged = 0;
 //This is a flag that is set to TRUE once HC-05 has been paired with a slave
 bool isPaired = 0;
 
+//This variable will be used to store incoming sensor data
+String incoming = "";
+
 void setup() 
 {
     // start the serial communication with the host computer
@@ -71,6 +76,7 @@ void setup()
      
 }
 
+
 //Call this to get the HC-05 into AT mode
 void getATMode(){
     //Apply power to the HC-05
@@ -86,24 +92,26 @@ void getATMode(){
 }
 
 void loop(){
- 
+
      // Read from HC-05 and send to the Serial Monitor
     if (BTserial.available())
     {  
         c = BTserial.read();
         Serial.write(c);
     }
- 
+
+    //MANUAL INPUT AND COMMAND MIRRORING////////////////////////
     // Keep reading from Arduino Serial Monitor and send to HC-05
-    if (Serial.available())
+   /* if (Serial.available())
     {
         c =  Serial.read();
  
         // mirror the commands back to the serial monitor
         Serial.write(c);   
         BTserial.write(c);  
-    }
-
+    }*/
+    //////////////////////////////////////////////////////////////
+    
  //Switch HC-05 to AT mode in preparation for pairing
  //Set the isAtEngaged bool flag to true to make sure the getATMode function runs only once
   if(!isAtEngaged){
@@ -111,7 +119,7 @@ void loop(){
     isAtEngaged = 1;
   }
 
-  //HC-05 is now in pairing mode.
+  //HC-05 is now in АТ mode, ready to receive commands.
   //The lines that follow will send a series of AT commands
   //to pair HC-05 to a slave.
   if(!isPaired){
@@ -119,7 +127,10 @@ void loop(){
     delay(20);
     BTserial.write("AT+INIT\r\n");
     delay(20);
+    //Slave 1: 14,3,5593E,9
+    //Slave 2: 14,3,55AB4,9  
     BTserial.write("AT+PAIR=14,3,5593E,9\r\n");
+    //BTserial.write("AT+PAIR=14,3,55AB4,9\r\n");
     delay(100);
     digitalWrite(atPin, LOW);
     isPaired = 1;   
@@ -130,37 +141,41 @@ void loop(){
     BTserial.print("\nConnected to master.\n");
 
     //When HC-05 is paired with a slave, the STATE pin is set to HIGH
-    //Print a message to the serial monitor to confirm it 
-    if(pairedPin){
-      
-      //Serial.write("The state pin is HIGH, HC-05 is now paired with a slave!");
-      
+    if(pairedPin){  
       //Send a pairing confirmation message to the slave
       //Once received, it will respond with a temperature and humidity reading
-      BTserial.print("P");
+      BTserial.print("P");    
     } 
 
-      //Store the incoming reading in a variable and print it to the serial monitor
-      //BTSerial.read() expects an int, .readString() doesn't print anything to the SM
-      /*
-      int incoming = BTserial.read();
-      Serial.println("Incoming data from the slave: ");
-      Serial.println(incoming);
-      */
+  //Store the incoming reading in a variable and print it to the serial monitor
+  //Loop 6 times and check the Bluetoth serial for data
+   for(byte i = 0; i < 5; i++){
+    
+    //Store incoming data via BT to a string 
+    incoming = BTserial.readString();
+    
+    //Uncomment to print debug messages
+    /*
+    Serial.println("Incomingstringis: "+incoming);
+    Serial.println("Incomingstringis STILL: "+incoming);
+    */
+   }
+    //Debugging message - verifies that the incoming values have been stored in a string
+    Serial.println("Incoming string stored: "+incoming);
+    
     //MANUAL INPUT AND COMMAND MIRRORING////////////////////////
-    //
-    if (Serial.available())
+   /* if (Serial.available())
     {
         c =  Serial.read();
  
         // mirror the commands back to the serial monitor
         Serial.write(c);   
-        BTserial.write(c);  
-    }
+        BTserial.write(c); 
+    }*/
     ////////////////////////////////////////////////////////////
     
-    delay(3000);
-  } 
+  
+  }// end if  
 
  }//end loop
   
