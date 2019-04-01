@@ -1,6 +1,10 @@
 /*
  * @author Tsonyo Vasilev
- * @version 0.3
+ * @version 0.4
+ * 
+ * version 0.4: Major changes to the connection algorithm -
+ * PAIR, BIND and LINK commands are used in sequence to reliably connnect
+ * to an HC-06 slave. 
  * 
  * version 0.3: Incoming sensor data is now stored  in a String variable
  * 
@@ -102,14 +106,16 @@ void loop(){
 
     //MANUAL INPUT AND COMMAND MIRRORING////////////////////////
     // Keep reading from Arduino Serial Monitor and send to HC-05
-   /* if (Serial.available())
+    /*
+    if (Serial.available())
     {
         c =  Serial.read();
  
         // mirror the commands back to the serial monitor
         Serial.write(c);   
         BTserial.write(c);  
-    }*/
+    }
+    */
     //////////////////////////////////////////////////////////////
     
  //Switch HC-05 to AT mode in preparation for pairing
@@ -125,28 +131,53 @@ void loop(){
   if(!isPaired){
     BTserial.write("AT\r\n"); //The HC-05 responds with "OK" if everything's fine. 
     delay(20);
-    BTserial.write("AT+INIT\r\n");
+    BTserial.write("AT+RMAAD\r\n"); //Remove paired devices
     delay(20);
+    BTserial.write("AT+ROLE=1\r\n"); //Put the HC-05 in master mode
+    delay(20);
+    BTserial.write("AT+RESET\r\n"); //Reset the HC-05 (just in case)
+    delay(200);
+
+    BTserial.write("AT+CMODE=0\r\n"); //Allow the HC-05 to connect to any device
+    delay(50);
+    
+    BTserial.write("AT+INIT\r\n"); // Initiate SPP profile
+    delay(200);
+    
     //Slave 1: 14,3,5593E,9
     //Slave 2: 14,3,55AB4,9  
     BTserial.write("AT+PAIR=14,3,5593E,9\r\n");
     //BTserial.write("AT+PAIR=14,3,55AB4,9\r\n");
-    delay(100);
-    digitalWrite(atPin, LOW);
+    delay(1000);
+
+    BTserial.write("AT+BIND=14,3,5593E\r\n");
+    delay(500);
+
+    BTserial.write("AT+CMODE=1\r\n"); // Set HC-05 to only connect with paired devices
+    delay(500);
+
+    BTserial.write("AT+LINK=14,3,5593E\r\n"); //Link HC-05 to a slave
+    delay(500);
+    
+    digitalWrite(atPin, LOW); //Drive pin 34 low, we dont't need AT mode anymore
     isPaired = 1;   
-    delay(100);
+    delay(400);
   
 
     //Send a welcome message to the slave 
     BTserial.print("\nConnected to master.\n");
 
     //When HC-05 is paired with a slave, the STATE pin is set to HIGH
-    if(pairedPin){  
+    if(pairedPin){
+      //Serial.println("pairedPin is HIGH AF");  
       //Send a pairing confirmation message to the slave
       //Once received, it will respond with a temperature and humidity reading
-      BTserial.print("P");    
+     
+      BTserial.print("P"); 
+      
     } 
 
+  //Serial.println(BTserial.readString());
   //Store the incoming reading in a variable and print it to the serial monitor
   //Loop 6 times and check the Bluetoth serial for data
    for(byte i = 0; i < 5; i++){
@@ -164,14 +195,14 @@ void loop(){
     Serial.println("Incoming string stored: "+incoming);
     
     //MANUAL INPUT AND COMMAND MIRRORING////////////////////////
-   /* if (Serial.available())
+    if (Serial.available())
     {
         c =  Serial.read();
  
         // mirror the commands back to the serial monitor
         Serial.write(c);   
         BTserial.write(c); 
-    }*/
+    }
     ////////////////////////////////////////////////////////////
     
   
