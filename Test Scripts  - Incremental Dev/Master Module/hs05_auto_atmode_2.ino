@@ -1,6 +1,9 @@
 /*
  * @author Tsonyo Vasilev
- * @version 0.4
+ * @version 0.5
+ * 
+ * version 0.5: The code now uses an array of slave addresses,
+ * pairs with them in sequence and stores their sensor readings.
  * 
  * version 0.4: Major changes to the connection algorithm -
  * PAIR, BIND and LINK commands are used in sequence to reliably connnect
@@ -66,7 +69,7 @@ String incoming = "";
 //Store slave addresses
 String slave1 = "14,3,5593E";
 String slave2 = "14,3,5597A";
-
+String slaveArray [] = {"14,3,5593E", "14,3,5597A"};
 void setup() 
 {
     // start the serial communication with the host computer
@@ -102,7 +105,7 @@ void getATMode(){
 
 void connectToSlave(String slaveAddress){
   
-BTserial.write("AT+CMODE=0\r\n"); //Allow the HC-05 to connect to any device
+    BTserial.write("AT+CMODE=0\r\n"); //Allow the HC-05 to connect to any device
     delay(400);
     
     BTserial.write("AT+INIT\r\n"); // Initiate SPP profile
@@ -129,29 +132,8 @@ BTserial.write("AT+CMODE=0\r\n"); //Allow the HC-05 to connect to any device
 }
 
 void loop(){
-
-     // Read from HC-05 and send to the Serial Monitor
-     /*
-    if (BTserial.available())
-    {  
-        c = BTserial.read();
-        Serial.write(c);
-    }
-    */
-    //MANUAL INPUT AND COMMAND MIRRORING////////////////////////
-    // Keep reading from Arduino Serial Monitor and send to HC-05
-    /*
-    if (Serial.available())
-    {
-        c =  Serial.read();
- 
-        // mirror the commands back to the serial monitor
-        Serial.write(c);   
-        BTserial.write(c);  
-    }
-    */
-    //////////////////////////////////////////////////////////////
     
+ for(byte k = 0; k < 2; k++){   
  //Switch HC-05 to AT mode in preparation for pairing
  //Set the isAtEngaged bool flag to true to make sure the getATMode function runs only once
   if(!isAtEngaged){
@@ -165,35 +147,8 @@ void loop(){
   if(!isPaired){
 
     //Connect to a slave with a specified address
-   connectToSlave(slave2);
-   
-    /*
-    BTserial.write("AT+CMODE=0\r\n"); //Allow the HC-05 to connect to any device
-    delay(400);
-    
-    BTserial.write("AT+INIT\r\n"); // Initiate SPP profile
-    delay(400);
-    
-    BTserial.print("AT+PAIR=" + slaveAddress + ",9" + "\r\n");
-    delay(4000);
+    connectToSlave(slaveArray[k]);
 
-    BTserial.print("AT+BIND=" + slaveAddress + "\r\n");
-    delay(500);
-
-    BTserial.print("AT+CMODE=1\r\n"); // Set HC-05 to only connect with paired devices
-    delay(500);
-    
-
-    //14,3,5593E
-    //14,3,5597A
-    BTserial.print("AT+LINK="+slaveAddress+"\r\n"); //Link HC-05 to a slave
-    
-    delay(2000);
-    
-    digitalWrite(atPin, LOW); //Drive pin 34 low, we dont't need AT mode anymore
-    isPaired = 1;   
-    delay(400);
-    */
     //Send a welcome message to the slave 
     BTserial.print("\nConnected to master.\n");
 
@@ -204,35 +159,29 @@ void loop(){
       BTserial.print("P"); 
     } 
 
-  //Loop until the message from the slave (starting with "T") is received, then store 
-  //it in a String variable
-  while(!incoming.startsWith("T")){
-    //Store incoming data via BT to a string 
-    incoming = BTserial.readString();
+    //Loop until the message from the slave (starting with "T") is received, then store 
+    //it in a String variable
+    while(!incoming.startsWith("T")){
+      //Store incoming data via BT to a string 
+      incoming = BTserial.readString();
     
-    //Uncomment to print debug messages
-    //Serial.println(incoming.charAt(0));
-    //Serial.println("Incomingstringis: "+incoming);
-    //Serial.println("Incomingstringis STILL: "+incoming);
-  }
-    //Debugging message - verifies that the incoming values have been stored in a string
-    Serial.println("Incoming string stored: "+incoming);
-    
-    //MANUAL INPUT AND COMMAND MIRRORING////////////////////////
-    /*
-    if (Serial.available())
-    {
-        c =  Serial.read();
- 
-        // mirror the commands back to the serial monitor
-        Serial.write(c);   
-        BTserial.write(c); 
+      //Uncomment to print debug messages
+      //Serial.println(incoming.charAt(0));
+      //Serial.println("Incomingstringis: "+incoming);
+      //Serial.println("Incomingstringis STILL: "+incoming);
     }
-    */
-    ////////////////////////////////////////////////////////////
-    
-  
+    //Debugging message - verifies that the incoming values have been stored in a string
+    Serial.println("Receiving data from " + slaveArray[k]);
+    Serial.println("Incoming string stored: "+incoming);
   }// end if  
-delay(3000);
+
+  //Disable the AT bool before the next iteration
+  isAtEngaged = 0;
+  //Disable the paired bool before the next iteration
+  isPaired = 0;
+ }//end main "for"
+ 
+  delay(3000);
+  
  }//end loop
   
