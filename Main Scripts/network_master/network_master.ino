@@ -1,9 +1,13 @@
 /*
  * @author Tsonyo Vasilev
- * @version 0.6
+ * @version 0.7
+ * 
+ * version 0.7: Addresses an issue where the network would "hang" because of an
+ * unresponsive slave. Pin D8 is now connected to the RESET pin on the microcontroller
+ * and resets it whenever it detects that a slave has not responded on time.
  * 
  * version 0.6: Inherited from hs05_auto_atmode_2.ino
- * Code cleanup, first Processing visualzation, message format sent to 
+ * Code cleanup, first Processing visualisation, message format sent to 
  * Processing is <module address>;<temperature>;<humidity>
  * 
  * version 0.5: The code now uses an array of slave addresses,
@@ -44,11 +48,9 @@
 //Needed for serial comms via Bluetooth
 #include <SoftwareSerial.h>
 
-#include <avr/wdt.h>
-
 SoftwareSerial BTserial(2, 3); // RX | TX
 // Connect the HC-05 TX to Arduino pin 3 RX. 
-// Connect the HC-05 RX to Arduino pin 2 TX through a voltage divider (No voltage divider required, the board already has a regulator).
+// Connect the HC-05 RX to Arduino pin 2 TX. Reqires 3.3V rather than 5V - no voltage divider required, the HC-05 board already has a regulator.
 
 //D4 on the Arduino controls pin 34 on the HC-05 through a voltage divider, 
 //dropping the output voltage to 3.3V rather than the 5V a digital pin supplies when pulled to HIGH.
@@ -58,7 +60,12 @@ byte atPin = 4;
 byte hcPower = 7;
 
 //D5 is connected to the STATE pin of the HC-05 and goes HIGH when the module is paired with a slave
-byte pairedPin =5;
+byte pairedPin = 5;
+
+//Reset pin, connected to the mC's RESET pin
+//It has to be HIGH, otherwise the program will not run.
+//The first line in the setup() method pulls it HIGH.
+byte resetPin = 8;
 
 //Used for mirroring AT commands to the serial monitor
 char c = ' ';
@@ -79,16 +86,21 @@ String slave2 = "14,3,5597A";
 //An array to hold slave addresses
 String slaveArray [] = {"14,3,5593E", "14,3,5597A"};
 
-unsigned long latestReadingTime = 0;
+//Loop counter, used for checking whether a slave is taking too long to respond 
+int loopCounter = 0;
 
 
 void setup() 
 {
-    // start the serial communication with the host computer
+    //Pull the reset pin HIGH to ensure the program runs
+    digitalWrite(resetPin, HIGH);
+    delay(100);
+    
+    //Start the serial communication with the host computer
     Serial.begin(9600);
     //Serial.println("HC-05 and Arduino are ready, baud rate for comms with the PC is 9600.");
  
-    // start communication with the HC-05 using 38400
+    //Start communication with the HC-05 using a baud rate of 38400
     BTserial.begin(38400);  
     //Serial.println("BTserial started at 38400");
 
@@ -97,18 +109,11 @@ void setup()
 
     //Pin 7 powers the HC-05
     pinMode(hcPower, OUTPUT);
+
+    //Pin 8 is connected to the RESET pin on the mC
+    pinMode(resetPin, OUTPUT);
      
 }
-
-//Reset function
-void(* resetFunc) (void) = 0;//declare reset function at address 0
-
-void reboot() {
-  wdt_disable();
-  wdt_enable(WDTO_15MS);
-  while (1) {}
-}
-
 
 //Call this to get the HC-05 into AT mode
 void getATMode(){
@@ -124,6 +129,9 @@ void getATMode(){
     delay(1500);
 }
 
+//This function takes an HC-06 slave address and
+//issues a series of AT commands to the HC-05 master
+//in order to connect to it.
 void connectToSlave(String slaveAddress){
   
     BTserial.write("AT+CMODE=0\r\n"); //Allow the HC-05 to connect to any device
@@ -140,88 +148,88 @@ void connectToSlave(String slaveAddress){
 
     BTserial.print("AT+CMODE=1\r\n"); // Set HC-05 to only connect with paired devices
     delay(500);
-    
-    //14,3,5593E
-    //14,3,5597A
+
     BTserial.print("AT+LINK="+slaveAddress+"\r\n"); //Link HC-05 to a slave
-    
     delay(2000);
-    
+
     digitalWrite(atPin, LOW); //Drive pin 34 low, we dont't need AT mode anymore
-    isPaired = 1;   
-    delay(400);
+    //Set the paired bool flag to true
+    isPaired = 1;  
+    
+    delay(500);
 }
 
 void loop(){
-    
- for(byte k = 0; k < 2; k++){   
-  /*
-  //If it's been more than 35 seconds since the last reading,
-  //reset the master
-  if(millis()-latestReadingTime > 35000){
-    Serial.println("Resetting...");
-    latestReadingTime = 0;
-    delay(500);
-    reboot(); 
-  }
-  */
- //Switch HC-05 to AT mode in preparation for pairing
- //Set the isAtEngaged bool flag to true to make sure the getATMode function runs only once
-  if(!isAtEngaged){
-    getATMode();
-    isAtEngaged = 1;
-  }
-
-  //HC-05 is now in АТ mode, ready to receive commands.
-  //The lines that follow will send a series of AT commands
-  //to pair HC-05 to a slave.
-  if(!isPaired){
-
-    //Connect to a slave with a specified address
-    connectToSlave(slaveArray[k]);
-    
-    //Update the last time a reading was made
-    //latestReadingTime = millis();
-    //Serial.println("Latest reading time updated: " + latestReadingTime);
-
-    //Send a welcome message to the slave 
-    BTserial.print("\nConnected to master.\n");
-
-    //When HC-05 is paired with a slave, the STATE pin is set to HIGH
-    if(pairedPin){
-      //Send a pairing confirmation message to the slave
-      //Once received, it will respond with a temperature and humidity reading
-      BTserial.print("P"); 
-    } 
-
-    //Loop until the message from the slave (starting with "T") is received, then store 
-    //it in a String variable
-    while(!incoming.startsWith("T")){
-      //Store incoming data via BT to a string 
-      incoming = BTserial.readString();
-    
-      //Uncomment to print debug messages
-      //Serial.println(incoming.charAt(0));
-      //Serial.println("Incomingstringis: "+incoming);
-      //Serial.println("Incomingstringis STILL: "+incoming);
+  for(byte k = 0; k < 2; k++){ 
+   //Switch HC-05 to AT mode in preparation for pairing
+   //Set the isAtEngaged bool flag to true to make sure the getATMode function runs only once
+    if(!isAtEngaged){
+      getATMode();
+      isAtEngaged = 1;
     }
-    //Format a message to be printed to the SM
-    //Processing picks this up and splits it for displaying
-    Serial.println(slaveArray[k]+";"+incoming);
-
-    //Reset the variable which stores incoming sensor readings
+  
+    //HC-05 is now in АТ mode, ready to receive commands.
+    //The lines that follow will send a series of AT commands
+    //to pair HC-05 to a slave.
+    if(!isPaired){
+  
+      //Connect to a slave with a specified address
+      connectToSlave(slaveArray[k]);
+  
+      //Send a welcome message to the slave 
+      BTserial.print("\nConnected to master.\n");
+  
+      //When HC-05 is paired with a slave, it sets its STATE to HIGH
+      if(pairedPin){
+        //Send a pairing confirmation message to the slave
+        //Once received, it will respond with a temperature and humidity reading
+        BTserial.print("P"); 
+      } 
+  
+      
+      //Loop until the message from the slave (starting with "T") is received, then store 
+      //it in a String variable
+      while(!incoming.startsWith("T")){
+        
+        //Store incoming data via BT to a string 
+        incoming = BTserial.readString();
+  
+        //If the slave doesn't respond with a reading within 30 iterations, reset the master
+        //Slaves usually respond with their readings in less than 10 iterations
+        if(loopCounter > 30){
+          Serial.println("No response from slave, resetting...");
+          loopCounter = 0; //not needed, mC will be reset anyway
+          delay(50);
+          digitalWrite(resetPin,LOW);
+        }
+  
+        //Increment the loop counter
+        loopCounter++;
+        
+        //Uncomment to print debug messages
+        /*
+        Serial.println(incoming.charAt(0));
+        Serial.println("Incomingstringis: "+incoming);
+        Serial.println("Incomingstringis STILL: "+incoming);
+        */
+      }
+      //Format a message to be printed to the SM
+      //Processing picks this up and splits it for displaying
+      Serial.println(slaveArray[k]+";"+incoming);
+  
+      //Reset the variable which stores incoming sensor readings
+      incoming = "";
+      
+    }//end if  
+  
+    //Disable the AT bool before the next iteration
+    isAtEngaged = 0;
+    //Disable the paired bool before the next iteration
+    isPaired = 0;
+    //reset the string where readings are stored
     incoming = "";
-  }// end if  
-
-  //Disable the AT bool before the next iteration
-  isAtEngaged = 0;
-  //Disable the paired bool before the next iteration
-  isPaired = 0;
-  //reset the string where readings are stored
-  incoming = "";
- }//end main "for"
- 
-  delay(3000);
+    
+   }//end main "for"
   
  }//end loop
   
