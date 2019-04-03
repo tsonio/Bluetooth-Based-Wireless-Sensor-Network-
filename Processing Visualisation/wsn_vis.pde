@@ -1,8 +1,11 @@
 /*
 *@author Tsonyo Vasilev
-*@version 0.1
+*@version 0.2
 *
-*This script displays a basic visualization of the current readings
+*version 0.2: Added temperature bar graphs. New data is now
+indicated by a green dot next to the name of the slave.
+*
+*This script displays a basic visualisation of the current readings
 *from each of the remote nodes of the wireless sensor network.
 */
 import processing.serial.*;
@@ -19,7 +22,7 @@ int yDist;
 
 void setup()
 {
-  size(600,600);
+  size(350,600);
   background(50);
   String portName = Serial.list()[1];
   myPort = new Serial(this, portName, 9600);
@@ -27,7 +30,12 @@ void setup()
 
 void draw()
 {
-  fill(255);
+  
+    //Clear standby message
+    noStroke();
+    fill(50);
+    //rect(50,420,300,150);
+    
   if( myPort.available() > 0) 
   {  // If data is available,
     val = myPort.readStringUntil('\n');         // read it and store it in val
@@ -40,12 +48,36 @@ void draw()
     println(readings[i]);
   }
   
+    //Reset first new data circle
+    noStroke();
+    fill(50);
+    ellipse(25, 45, 30,30);
+    
+    //Reset second new data circle
+    noStroke();
+    fill(50);
+    ellipse(25, 295, 30,30);
+    
+    //Clear standby message
+    noStroke();
+    fill(50);
+    rect(50,460,200,300);
+    
+    
+    
   //Draw output on different parts of the canvas
   //depending on which sensor is read
   if(readings[0].trim().equals("14,3,5593E")){
+    //Reset data display
     fill(50);
     noStroke();
     rect(50,50,300,200);
+    
+    //Reset temperature bar
+    noStroke();
+    fill(50);
+    rect(40, 155, 260, 40);
+    
     textSize(20);
     fill(120);
     text("Remote Node 1", 50, 50);
@@ -55,10 +87,44 @@ void draw()
     text("Relative humidity: "+readings[2], 50,120);
     fill(90);
     text("Latest reading: " + str(hour())+":"+str(minute())+":"+str(second()),50,140);
-  }else if(readings[0].trim().equals("14,3,5597A")){ 
+    //New data indicator
+    fill(0,255,0);
+    noStroke();
+    ellipse(25, 45, 20,20);
+    
+    //Temperature bar graph
+    float temp = parseFloat(readings[1].substring(1,readings[1].length()-1)); //Get temperature as float
+    //Draw background
+    noStroke();
+    fill(90);
+    rect(45, 160, 250, 30);
+    //Draw temperature bar
+    int tempRange = 40;
+    int barSize= (240/tempRange)*parseInt(temp);
+    println("Temperature: "+temp+"Bar size: "+barSize);
+    fill(255,0,0);
+    rect(50, 165, barSize, 20);
+    //0°C mark
+    fill(90);
+    textSize(15);
+    text("0°C", 45, 207);
+    //40°C mark
+    fill(90);
+    textSize(15);
+    text("40°C", 260, 207);
+    
+
+  }else if(readings[0].trim().equals("14,3,5597A")){
+    //Reset data display
     fill(50);
     noStroke();
     rect(50,300,300,200);
+    
+    //Reset temperature bar
+    noStroke();
+    fill(50);
+    rect(45, 405, 260, 40);
+    
     textSize(20);
     fill(120);
     text("Remote Node 2", 50, 300);
@@ -68,25 +134,37 @@ void draw()
     text("Relative humidity: "+readings[2], 50,370);
     fill(90);
     text("Latest reading: " + str(hour())+":"+str(minute())+":"+str(second()),50,390);
+    //New data indicator
+    fill(0,255,0);
+    noStroke();
+    ellipse(25, 295, 20,20);
+    
+    //Temperature bar graph
+    float temp = parseFloat(readings[1].substring(1,readings[1].length()-1)); //Get temperature as float
+    //Draw background
+    noStroke();
+    fill(90);
+    rect(45, 410, 250, 30);
+    //Draw temperature bar
+    int tempRange = 40;
+    int barSize= (240/tempRange)*parseInt(temp);
+    println("Temperature: "+temp+"Bar size: "+barSize);
+    fill(255,0,0);
+    rect(50, 415, barSize, 20);
+    //0°C mark
+    fill(90);
+    textSize(15);
+    text("0°C", 45, 457);
+    //40°C mark
+    fill(90);
+    textSize(15);
+    text("40°C", 260, 457);
+    
+  }else if(readings[0].trim().equals("No response from slave, resetting...")){ //No response from slave, resetting...
+    textSize(20);
+    fill(90);
+    text("NETWORK STANDING BY,\nPLEASE WAIT.",50,490);
   }
   
-   /*
-   //draw the temp rectangle
-   
-    colorMode(RGB, 160);  //use color mode sized for fading
-    stroke (0);
-    rect (49,19,22,162);
-    //fade red and blue within the rectangle
-    for (int colorIndex = 0; colorIndex <= 160; colorIndex++) 
-    {
-      stroke(160 - colorIndex, 0, colorIndex);
-      line(50, colorIndex + 20, 70, colorIndex + 20);
-    }
-    int temperature = int(readings[1].substring(1,readings[1].length()-1));
-    //draw triangle pointer
-    yDist = int(160 - (160 * (temperature * 0.01)));
-    stroke(0);
-    triangle(75, yDist + 20, 85, yDist + 15, 85, yDist + 25);
-    */
  }
 }
