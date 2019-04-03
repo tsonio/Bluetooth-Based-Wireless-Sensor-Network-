@@ -3,7 +3,7 @@
 *@version 0.2
 *
 *version 0.2: Added temperature bar graphs. New data is now
-indicated by a green dot next to the name of the slave.
+*indicated by a green dot next to the name of the slave.
 *
 *This script displays a basic visualisation of the current readings
 *from each of the remote nodes of the wireless sensor network.
@@ -17,8 +17,6 @@ String temp;
 String hum;
 //Store the input string once split
 String readings [];
-//Aux variable for drawing the temperature bar
-int yDist;
 
 void setup()
 {
@@ -30,11 +28,6 @@ void setup()
 
 void draw()
 {
-  
-    //Clear standby message
-    noStroke();
-    fill(50);
-    //rect(50,420,300,150);
     
   if( myPort.available() > 0) 
   {  // If data is available,
@@ -45,8 +38,8 @@ void draw()
   if(val!=null && val.length() > 10){
     readings = split(val,';');
     for(int i = 0; i < readings.length; i++){
-    println(readings[i]);
-  }
+      println(readings[i]);
+    }
   
     //Reset first new data circle
     noStroke();
@@ -61,7 +54,7 @@ void draw()
     //Clear standby message
     noStroke();
     fill(50);
-    rect(50,460,200,300);
+    rect(50,470,350,250);
     
     
     
@@ -166,5 +159,5 @@ void draw()
     text("NETWORK STANDING BY,\nPLEASE WAIT.",50,490);
   }
   
- }
+ }//end main "if"
 }
