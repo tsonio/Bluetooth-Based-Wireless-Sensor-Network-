@@ -79,12 +79,8 @@ bool isPaired = 0;
 //This variable will be used to store incoming sensor data
 String incoming = "";
 
-//Store slave addresses
-String slave1 = "14,3,5593E";
-String slave2 = "14,3,5597A";
-
 //An array to hold slave addresses
-String slaveArray [] = {"14,3,5593E", "14,3,5597A"};
+String slaveArray [] = {"14,3,5593E", "14,3,5597A","14,3,55917"};
 
 //Loop counter, used for checking whether a slave is taking too long to respond 
 int loopCounter = 0;
@@ -160,7 +156,7 @@ void connectToSlave(String slaveAddress){
 }
 
 void loop(){
-  for(byte k = 0; k < 2; k++){ 
+  for(byte k = 0; k < 3; k++){ 
    //Switch HC-05 to AT mode in preparation for pairing
    //Set the isAtEngaged bool flag to true to make sure the getATMode function runs only once
     if(!isAtEngaged){
