@@ -104,7 +104,7 @@ void loop()
     
     //Wait for the master to send its pairing confirmation message,
     //then format and send sensor readings.
-    if(connectionConfirmation = "P"){
+    if(connectionConfirmation == "P"){
       //for(byte i = 0; i<10; i++){
         Serial.print(tempString+humString);
         //BTSerial.println("HC-06 slave connected: ");
